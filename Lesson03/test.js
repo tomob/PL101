@@ -10,16 +10,19 @@ var parse = PEG.buildParser(data, {trackLineAndColumn: true}).parse;
 assert.throws(function() {parse("")}); // Empty 
 
 // atoms
-assert(parse("a"), "a");
-assert(parse("pl101"), "a");
-assert(parse("101pl"), "a");
-assert(parse("PL-101"), "a");
-assert(parse("0-9a-zA-Z_?!+-=@#$%^&*/."), "0-9a-zA-Z_?!+-=@#$%^&*/.");
+assert.equal(parse("a"), "a");
+assert.equal(parse("pl101"), "pl101");
+assert.equal(parse("101pl"), "101pl");
+assert.equal(parse("PL-101"), "PL-101");
+assert.equal(parse("PL-101 "), "PL-101");
+assert.equal(parse("PL-101\n"), "PL-101");
+assert.equal(parse("PL-101\t"), "PL-101");
+assert.equal(parse("0-9a-zA-Z_?!+-=@#$%^&*/."), "0-9a-zA-Z_?!+-=@#$%^&*/.");
 
 // lists
 assert.deepEqual(parse("()"), []);
 assert.deepEqual(parse("(  )"), []);
-assert.deepEqual( parse("(a b c)"), ["a", "b", "c"] );
+assert.deepEqual(parse("(a b c)"), ["a", "b", "c"]);
 assert.deepEqual(parse("(())"), [[]]);
 assert.deepEqual(parse("((()))"), [[[]]]);
 assert.deepEqual(parse("(a (b c) d)"), ["a", ["b", "c"], "d"]);

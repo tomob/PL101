@@ -1,33 +1,27 @@
 start =
-    space* e:expression_or_quote space* 
+    space* e:expression
     	{ return e; }
 
 validchar
     = [0-9a-zA-Z_?!+\-=@#$%^&*/.]
 
 atom =
-    chars:validchar+
+    chars:validchar+ space*
         { return chars.join(""); }
 
-expression_or_quote =
-	expression / quote
-
 expression = 
-	atom / list 
+	atom / list / quote
 
 list =
-	"(" space* first:expression? rest:(space+ expression)* space* ")"
-    	{ 
-    		if (first === "") return [];
-    		return [first].concat(rest.map(function(elem){return elem[1];})); 
-    	}
+	"(" space* forms:expression* ")" space*
+    	{ return forms; }
 
 space =
 	" " / "\t" / "\n" / comment
 
 quote = 
 	"'" e:expression
-		{ return ["quote"].concat(e); }
+		{ return ["quote", e]; }
 
 comment =
 	";;" (!eol .)* eol
