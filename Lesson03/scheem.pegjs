@@ -13,20 +13,24 @@ expression_or_quote =
 	expression / quote
 
 expression = 
-	atom / list
+	atom / list 
 
 list =
 	"(" space* first:expression? rest:(space+ expression)* space* ")"
     	{ 
-    		//console.log("A" + first + "B" + rest + "C");
     		if (first === "") return [];
-    		//console.log("lala");
     		return [first].concat(rest.map(function(elem){return elem[1];})); 
     	}
 
 space =
-	" " / "\t" / "\n"
+	" " / "\t" / "\n" / comment
 
 quote = 
 	"'" e:expression
 		{ return ["quote"].concat(e); }
+
+comment =
+	";;" (!eol .)* eol
+
+eol =
+	"\n"

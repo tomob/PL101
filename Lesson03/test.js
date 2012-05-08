@@ -4,7 +4,7 @@ var fs = require('fs'); // for loading files
 
 // Read file contents
 var data = fs.readFileSync('scheem.pegjs', 'utf-8');
-var parse = PEG.buildParser(data).parse;
+var parse = PEG.buildParser(data, {trackLineAndColumn: true}).parse;
 
 // Tests
 assert.throws(function() {parse("")}); // Empty 
@@ -35,6 +35,14 @@ assert.deepEqual(parse("  (a b c)   "), ["a", "b", "c"]);
 // quotes
 assert(parse("'a"), ["quote", "a"]);
 assert(parse("'(a b c)"), ["quote", ["a", "b", "c"]]);
+
+// comments
+//assert(parse(";; a comment\n"), "");
+assert(parse(";; a comment\na"), "a");
+assert(parse(";; a comment\na"), "a");
+assert(parse("(a b ;;a comment\nc)"), ["a", "b", "c"]);
+assert(parse("(a b \n;;a comment\nc)"), ["a", "b", "c"]);
+assert(parse("'(a b ;;a comment\nc)"), ["quote" ["a", "b", "c"]]);
 
 // Report completion
 console.log("All OK")
