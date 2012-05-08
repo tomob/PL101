@@ -1,5 +1,5 @@
 start =
-    space* e:expression space* 
+    space* e:expression_or_quote space* 
     	{ return e; }
 
 validchar
@@ -9,7 +9,10 @@ atom =
     chars:validchar+
         { return chars.join(""); }
 
-expression =
+expression_or_quote =
+	expression / quote
+
+expression = 
 	atom / list
 
 list =
@@ -23,3 +26,7 @@ list =
 
 space =
 	" " / "\t" / "\n"
+
+quote = 
+	"'" e:expression
+		{ return ["quote"].concat(e); }

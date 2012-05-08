@@ -32,5 +32,9 @@ assert.deepEqual(parse("( a b c )"), ["a", "b", "c"]);
 assert.deepEqual(parse("(a\nb\n\tc)"), ["a", "b", "c"]);
 assert.deepEqual(parse("  (a b c)   "), ["a", "b", "c"]);
 
+// quotes
+assert(parse("'a"), ["quote", "a"]);
+assert(parse("'(a b c)"), ["quote", ["a", "b", "c"]]);
+
 // Report completion
 console.log("All OK")
