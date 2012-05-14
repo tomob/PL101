@@ -23,6 +23,10 @@ var evalScheem = function (expr, env) {
     if (typeof expr === 'number') {
         return expr;
     }
+    // Strings are variable references
+    if (typeof expr === 'string') {
+        return env[expr];
+    }
     // Look at head of list for operation
     switch (expr[0]) {
         case '+':
@@ -39,6 +43,40 @@ var evalScheem = function (expr, env) {
                    evalScheem(expr[2], env);
         case 'quote':
             return expr[1];
+        case 'define':
+            env[expr[1]] = evalScheem(expr[2], env);
+            return 0;
+        case 'set!':
+            env[expr[1]] = evalScheem(expr[2], env);
+            return 0;
+        case 'begin':
+            var res = expr.slice(1).map(function(expr) {
+                return evalScheem(expr, env);
+            });
+            return res[res.length - 1];
+        case '=':
+            var eq =
+                (evalScheem(expr[1], env) ===
+                 evalScheem(expr[2], env));
+            return eq?'#t':'#f';
+        case '<':
+            var eq =
+                (evalScheem(expr[1], env) <
+                 evalScheem(expr[2], env));
+            return eq?'#t':'#f';
+        case 'cons':
+            return [evalScheem(expr[1], env)].concat(
+                    evalScheem(expr[2], env));
+        case 'car':
+            return evalScheem(expr[1], env)[0];
+        case 'cdr':
+            return evalScheem(expr[1], env).splice(1);
+        case 'if':
+            var cond = evalScheem(expr[1], env);
+            if (cond === '#t')
+                return evalScheem(expr[2], env);
+            else 
+                return evalScheem(expr[3], env);
     }
 };
 
@@ -105,6 +143,132 @@ suite('arithmetic', function() {
     assert.deepEqual(evalScheem(['*', ['/', 8, 4], ['+', 1, 1]], {}), 4);
   });
 });
+
+// Environment
+suite('environment', function() {
+  test('lookup', function() {
+    assert.deepEqual(evalScheem('x', {'x': 5}), 5);
+  });
+  test('lookup in expresion', function() {
+    assert.deepEqual(evalScheem(['*', 'y', 3], {y: 2}), 6);
+  });
+  test('nested expressions', function() {
+    assert.deepEqual(evalScheem(['/', 'z', ['+', 'x', 'y']], {'x': 1, 'y': 2, 'z': 3}), 1);
+  });
+});
+
+// Define and set
+suite('define/set', function(){
+  test('define', function() {
+    var env = {};
+    var result = evalScheem(['define', 'a', 5], env);
+    assert.equal(result, 0);
+    assert.equal(env['a'], 5);
+  });
+  test('set! a', function() {
+    var env = {};
+    var result = evalScheem(['set!', 'a', 1], env);
+    assert.equal(result, 0);
+    assert.equal(env['a'], 1);
+  });
+  test('set! x', function() {
+    var env = {'x': 10, 'y':2};
+    var result = evalScheem(['set!', 'x', 7], env);
+    assert.equal(result, 0);
+    assert.equal(env['x'], 7);
+    assert.equal(env['y'], 2);
+  });
+  test('nested expressions', function() {
+    var env = {'x': 1, 'y':10};
+    var result = evalScheem(['set!', 'y', ['+', 'x', 1]], env);
+    assert.equal(result, 0);
+    assert.equal(env['x'], 1);
+    assert.equal(env['y'], 2);
+  });
+});
+
+// Begin
+suite('begin', function() {
+  test('just numbers', function(){
+    assert.deepEqual(evalScheem(['begin', 1, 2, 3], {}), 3);
+  });
+  test('expression', function(){
+    assert.deepEqual(evalScheem(['begin', ['+', 2, 2]], {}), 4);
+  });
+  test('symbols', function(){
+    var env = {'x':1, 'y':2};
+    assert.deepEqual(evalScheem(['begin', 'x', 'y', 'x'], env), 1);
+  });
+  test('set!\'s', function(){
+    var env = {'x': 1, 'y': 2};
+    var result = evalScheem(['begin', ['set!', 'x', 5], ['set!', 'x', ['+', 'y', 'x']], 'x'], env);
+    assert.equal(result, 7);
+    assert.equal(env['x'], 7);
+    assert.equal(env['y'], 2);
+  });
+});
+
+//predicates
+suite('predicates', function() {
+  test('(= 2 3)', function() {
+    assert.deepEqual(evalScheem(['=', 2, 3], {}), '#f');
+  });
+  test('(= 2 2)', function() {
+    assert.deepEqual(evalScheem(['=', 2, 2], {}), '#t');
+  });
+  test('(< 2 3)', function() {
+    assert.deepEqual(evalScheem(['<', 2, 3], {}), '#t');
+  });
+  test('(< 2 2)', function() {
+    assert.deepEqual(evalScheem(['<', 2, 2], {}), '#f');
+  });
+  test('(< (+ 1 1) (+ 2 3))', function() {
+    assert.deepEqual(evalScheem(['<', ['+', 1, 1], ['+', 2, 3]], {}), '#t');
+  });
+});
+
+// cons, car, cdr
+suite('cons, car, cdr', function() {
+  test('normal cons', function() {
+    assert.deepEqual(evalScheem(['cons', 1, ['quote', [2, 3]]], {}), [1, 2, 3]);
+  });
+  test('cons two lists', function() {
+    assert.deepEqual(evalScheem(['cons', ['quote', [1, 2]], ['quote', [3, 4]]], {}), [[1, 2], 3,4]);
+  });
+  test('car', function() {
+    assert.deepEqual(evalScheem(['car', ['quote', [1, 2, 3]]], {}), 1);
+  });
+  test('car (first elem is a list)', function() {
+    assert.deepEqual(evalScheem(['car', ['quote', [[1, 2], 3, 4]]], {}), [1, 2]);
+  });
+  test('cdr', function() {
+    assert.deepEqual(evalScheem(['cdr', ['quote', [[1, 2], 3, 4]]], {}), [3, 4]);
+  });
+});
+
+// If
+suite('if', function() {
+  test('true branch', function() {
+    assert.deepEqual(evalScheem(['if', ['=', 1, 1], 2, 3], {}), 2);
+  });
+  test('false branch', function() {
+    assert.deepEqual(evalScheem(['if', ['=', 1, 0], 2, 3], {}), 3);
+  });
+  test('true branch -- evaluation test', function() {
+    var env = {'x': 1};
+    assert.deepEqual(evalScheem(['if', ['=', 1, 1], 2, ['set!', 'x', 10]], {}), 2);
+    assert.equal(env['x'], 1);
+  });
+  test('false branch -- evaluation test', function() {
+    var env = {'x': 1};
+    assert.deepEqual(evalScheem(['if', ['=', 1, 0], ['set!', 'x', 10], 3], {}), 3);
+    assert.equal(env['x'], 1);
+  });
+  test('nested if', function() {
+    assert.deepEqual(evalScheem(['if', ['=', 1, 1], ['if', ['=', 2, 3], 10, 11], 12], {}), 11);
+  });
+});
+
 
   </script>
   <script>
