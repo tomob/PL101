@@ -15,3 +15,5 @@ node_modules
 npm-debug.log
 pl101.sublime-project
 pl101.sublime-workspace
+
+Lesson03/*.js
