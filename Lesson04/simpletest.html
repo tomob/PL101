@@ -17,7 +17,16 @@
   <script>
 var assert = chai.assert;
 
-// A half-baked implementation of evalScheem
+var verifyArgs = function(expr, min, max) {
+  if (typeof max === 'undefined')
+    max = min;
+  var args = expr.length;
+  if (args < min)
+    throw new Error("Too few arguements");
+  if (args > max)
+    throw new Error("Too many arguements");
+}
+
 var evalScheem = function (expr, env) {
     // Numbers evaluate to themselves
     if (typeof expr === 'number') {
@@ -25,58 +34,92 @@ var evalScheem = function (expr, env) {
     }
     // Strings are variable references
     if (typeof expr === 'string') {
-        return env[expr];
+      if (!(expr in env))
+        throw new Error("Unknown binding: " + expr);
+      return env[expr];
     }
     // Look at head of list for operation
     switch (expr[0]) {
         case '+':
-            return evalScheem(expr[1], env) +
-                   evalScheem(expr[2], env);
+          var e1 = evalScheem(expr[1], env);
+          var e2 = evalScheem(expr[2], env);
+          if (typeof e1 !== 'number')
+            throw new Error("'" + expr[1].toString() + "' should be a number");
+          if (typeof e2 !== 'number')
+            throw new Error("'" + expr[2].toString() + "' should be a number");
+          return e1 + e2;
         case '-':
-            return evalScheem(expr[1], env) -
-                   evalScheem(expr[2], env);
+          var e1 = evalScheem(expr[1], env);
+          var e2 = evalScheem(expr[2], env);
+          if (typeof e1 !== 'number')
+            throw new Error("'" + expr[1].toString() + "' should be a number");
+          if (typeof e2 !== 'number')
+            throw new Error("'" + expr[2].toString() + "' should be a number");
+          return e1 - e2;
         case '*':
-            return evalScheem(expr[1], env) *
-                   evalScheem(expr[2], env);
+          var e1 = evalScheem(expr[1], env);
+          var e2 = evalScheem(expr[2], env);
+          if (typeof e1 !== 'number')
+            throw new Error("'" + expr[1].toString() + "' should be a number");
+          if (typeof e2 !== 'number')
+            throw new Error("'" + expr[2].toString() + "' should be a number");
+          return e1 * e2;
         case '/':
-            return evalScheem(expr[1], env) /
-                   evalScheem(expr[2], env);
+          var e1 = evalScheem(expr[1], env);
+          var e2 = evalScheem(expr[2], env);
+          if (typeof e1 !== 'number')
+            throw new Error("'" + expr[1].toString() + "' should be a number");
+          if (typeof e2 !== 'number')
+            throw new Error("'" + expr[2].toString() + "' should be a number");
+          return e1 / e2;
         case 'quote':
-            return expr[1];
+          verifyArgs(expr, 2);
+          return expr[1];
         case 'define':
             env[expr[1]] = evalScheem(expr[2], env);
             return 0;
         case 'set!':
-            env[expr[1]] = evalScheem(expr[2], env);
-            return 0;
+          if (!(expr[1] in env))
+            throw new Error("Cannot set! an undefined binding ");
+          env[expr[1]] = evalScheem(expr[2], env);
+          return 0;
         case 'begin':
-            var res = expr.slice(1).map(function(expr) {
-                return evalScheem(expr, env);
-            });
-            return res[res.length - 1];
+          if (expr.length < 2)
+            throw new Error("Empty begin");
+          var res = expr.slice(1).map(function(expr) {
+              return evalScheem(expr, env);
+          });
+          return res[res.length - 1];
         case '=':
-            var eq =
-                (evalScheem(expr[1], env) ===
-                 evalScheem(expr[2], env));
-            return eq?'#t':'#f';
+          var eq =
+              (evalScheem(expr[1], env) ===
+               evalScheem(expr[2], env));
+          return eq?'#t':'#f';
         case '<':
-            var eq =
-                (evalScheem(expr[1], env) <
-                 evalScheem(expr[2], env));
-            return eq?'#t':'#f';
+          var eq =
+              (evalScheem(expr[1], env) <
+               evalScheem(expr[2], env));
+          return eq?'#t':'#f';
         case 'cons':
-            return [evalScheem(expr[1], env)].concat(
-                    evalScheem(expr[2], env));
+          verifyArgs(expr, 3);
+          return [evalScheem(expr[1], env)].concat(
+                  evalScheem(expr[2], env));
         case 'car':
-            return evalScheem(expr[1], env)[0];
+          verifyArgs(expr, 2);
+          var evald = evalScheem(expr[1], env);
+          if (evald.length == 0)
+            throw new Error("Cannot 'car' an empty list");
+          return evalScheem(expr[1], env)[0];
         case 'cdr':
-            return evalScheem(expr[1], env).splice(1);
+          verifyArgs(expr, 2);
+          return evalScheem(expr[1], env).splice(1);
         case 'if':
-            var cond = evalScheem(expr[1], env);
-            if (cond === '#t')
-                return evalScheem(expr[2], env);
-            else 
-                return evalScheem(expr[3], env);
+          verifyArgs(expr, 3, 4);
+          var cond = evalScheem(expr[1], env);
+          if (cond === '#t')
+              return evalScheem(expr[2], env);
+          else 
+              return evalScheem(expr[3], env);
     }
 };
 
@@ -101,27 +144,36 @@ suite('quote', function() {
             [1, 2, 3]
         );
     });
+    test('an empty list', function() {
+        assert.deepEqual(evalScheem(['quote', []], {}), []);
+    });
+    test('too few argument', function() {
+      assert.throws(function () {
+        evalScheem(['quote'], {});
+      });
+    });
+    test('too many argument', function() {
+      assert.throws(function () {
+        evalScheem(['quote', 'x', 'y'], {});
+      });
+    });
 });
 
 // Adding
 suite('add', function() {
     test('two numbers', function() {
-        assert.deepEqual(
-            evalScheem(['+', 3, 5], {}),
-            8
-        );
+        assert.deepEqual(evalScheem(['+', 3, 5], {}), 8);
     });
     test('a number and an expression', function() {
-        assert.deepEqual(
-            evalScheem(['+', 3, ['+', 2, 2]], {}),
-            7
-        );
+        assert.deepEqual(evalScheem(['+', 3, ['+', 2, 2]], {}), 7);
     });
     test('a number and a number', function() {
-        assert.deepEqual(
-            evalScheem(['+', 2, 2], {}),
-            4
-        );
+        assert.deepEqual(evalScheem(['+', 2, 2], {}), 4);
+    });
+    test('a dog and a cat', function() {
+      assert.throws(function () {
+        evalScheem(['+', 'dog', 'cat'], {}); 
+      });
     });
 });
 
@@ -142,6 +194,19 @@ suite('arithmetic', function() {
   test('expressions', function() {
     assert.deepEqual(evalScheem(['*', ['/', 8, 4], ['+', 1, 1]], {}), 4);
   });
+  test('arythmentic works on numbers only', function() {
+    var ops = ['+', '-', '*', '/'];
+    ops.forEach(function(op) {
+      assert.throws(function() {
+        evalScheem([op, 1, [quote, 'lala']], {});
+      });
+    });
+    ops.forEach(function(op) {
+      assert.throws(function() {
+        evalScheem([op, ['quote', 'lala'], 2], {});
+      });
+    });
+  });
 });
 
 // Environment
@@ -155,6 +220,14 @@ suite('environment', function() {
   test('nested expressions', function() {
     assert.deepEqual(evalScheem(['/', 'z', ['+', 'x', 'y']], {'x': 1, 'y': 2, 'z': 3}), 1);
   });
+  test('unknown binding', function() {
+    assert.throws(function() {
+      evalScheem('x', {});
+    });
+    assert.throws(function() {
+      evalScheem(['+', 1, ['x']], {'y': 1});
+    });
+  });
 });
 
 // Define and set
@@ -166,7 +239,7 @@ suite('define/set', function(){
     assert.equal(env['a'], 5);
   });
   test('set! a', function() {
-    var env = {};
+    var env = {'a': 100};
     var result = evalScheem(['set!', 'a', 1], env);
     assert.equal(result, 0);
     assert.equal(env['a'], 1);
@@ -184,6 +257,11 @@ suite('define/set', function(){
     assert.equal(result, 0);
     assert.equal(env['x'], 1);
     assert.equal(env['y'], 2);
+  });
+  test('set! cannot set an undefined binding', function() {
+    assert.throws(function() {
+      evalScheem(['set!', 'x', 10], {'y': 10});
+    });
   });
 });
 
@@ -206,6 +284,11 @@ suite('begin', function() {
     assert.equal(env['x'], 7);
     assert.equal(env['y'], 2);
   });
+  test('empty begin should fail', function() {
+    assert.throws(function() {
+      evalScheem(['begin'], {});
+    });
+  });
 });
 
 //predicates
@@ -225,6 +308,16 @@ suite('predicates', function() {
   test('(< (+ 1 1) (+ 2 3))', function() {
     assert.deepEqual(evalScheem(['<', ['+', 1, 1], ['+', 2, 3]], {}), '#t');
   });
+  test('(< 2)', function() {
+    assert.throws(function() {
+      evalScheem(['<', 2], {});
+    });
+  });
+  test('(= 2)', function() {
+    assert.throws(function() {
+      evalScheem(['=', 2], {});
+    });
+  });
 });
 
 // cons, car, cdr
@@ -243,6 +336,53 @@ suite('cons, car, cdr', function() {
   });
   test('cdr', function() {
     assert.deepEqual(evalScheem(['cdr', ['quote', [[1, 2], 3, 4]]], {}), [3, 4]);
+  });
+  test('cons -- too few arguements', function() {
+    assert.throws(function() {
+      evalScheem(['cons'], {});
+    });
+    assert.throws(function() {
+      evalScheem(['cons', 1], {});
+    });
+  });
+  test('cons -- too many arguements', function() {
+    assert.throws(function() {
+      evalScheem(['cons', 1, [2, 3], 4], {});
+    });
+  });
+  test('car -- too few arguements', function() {
+    assert.throws(function() {
+      evalScheem(['car'], {});
+    });
+  });
+  test('car -- too many arguements', function() {
+    assert.throws(function() {
+      evalScheem(['car', ['quote', 1, 2], 1], {});
+    });
+  });
+  test('cdr -- too few arguements', function() {
+    assert.throws(function() {
+      evalScheem(['cdr'], {});
+    });
+  });
+  test('cdr -- too many arguements', function() {
+    assert.throws(function() {
+      evalScheem(['cdr', ['quote', 1, 2, 3], 4], {});
+    });
+  });
+  test('cons atom and an empty list', function() {
+    assert.deepEqual(evalScheem(['cons', 1, ['quote', []]], {}), [1]);
+  });
+  test('cons an empty list and an empty list', function() {
+    // TODO
+  });
+  test('car an empty list', function() {
+    assert.throws(function() {
+      evalScheem(['car', ['quote', []]], {});
+    });
+  });
+  test('cdr an empty list', function() {
+    assert.deepEqual(evalScheem(['cdr', ['quote', []]]), []);
   });
 });
 
@@ -266,6 +406,25 @@ suite('if', function() {
   });
   test('nested if', function() {
     assert.deepEqual(evalScheem(['if', ['=', 1, 1], ['if', ['=', 2, 3], 10, 11], 12], {}), 11);
+  });
+  test('too few arguements', function() {
+    assert.throws(function() {
+      evalScheem(['if'], {});
+    });
+    assert.throws(function() {
+      evalScheem(['if', ['=', 2, 2]], {});
+    });
+  });
+  test('too many arguements', function() {
+    assert.throws(function() {
+      evalScheem(['if', ['=', 2, 2], 1, 2, 3], {});
+    });
+  });
+  test('empty else branch', function() {
+    assert.deepEqual(evalScheem(['if', ['=', 2, 2], 1], {}), 1);
+    assert.throws(function() {
+      evalScheem(['if', ['<', 2, 2], 1], {});
+    });
   });
 });
 
