@@ -1,0 +1,118 @@
+
+<!-- saved from url=(0056)http://nathansuniversity.com/scheem/test/simpletest.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta charset="utf-8">
+  <title>Mocha Tests</title>
+  <link rel="stylesheet"
+    href="http://nathansuniversity.com/css/mocha.css" />
+  <script src=
+    "http://nathansuniversity.com/js/jquery-1.7.1.min.js">
+  </script>
+  <script src=
+    "http://nathansuniversity.com/js/chai.js">
+  </script>
+  <script src="http://nathansuniversity.com/js/mocha.js">
+  </script>
+  <script>mocha.setup('tdd')</script>
+  <script>
+var assert = chai.assert;
+
+// A half-baked implementation of evalScheem
+var evalScheem = function (expr, env) {
+    // Numbers evaluate to themselves
+    if (typeof expr === 'number') {
+        return expr;
+    }
+    // Look at head of list for operation
+    switch (expr[0]) {
+        case '+':
+            return evalScheem(expr[1], env) +
+                   evalScheem(expr[2], env);
+        case '-':
+            return evalScheem(expr[1], env) -
+                   evalScheem(expr[2], env);
+        case '*':
+            return evalScheem(expr[1], env) *
+                   evalScheem(expr[2], env);
+        case '/':
+            return evalScheem(expr[1], env) /
+                   evalScheem(expr[2], env);
+        case 'quote':
+            return expr[1];
+    }
+};
+
+// Some unit tests
+
+suite('quote', function() {
+    test('a number', function() {
+        assert.deepEqual(
+            evalScheem(['quote', 3], {}),
+            3
+        );
+    });
+    test('an atom', function() {
+        assert.deepEqual(
+            evalScheem(['quote', 'dog'], {}),
+            'dog'
+        );
+    });
+    test('a list', function() {
+        assert.deepEqual(
+            evalScheem(['quote', [1, 2, 3]], {}),
+            [1, 2, 3]
+        );
+    });
+});
+
+// Adding
+suite('add', function() {
+    test('two numbers', function() {
+        assert.deepEqual(
+            evalScheem(['+', 3, 5], {}),
+            8
+        );
+    });
+    test('a number and an expression', function() {
+        assert.deepEqual(
+            evalScheem(['+', 3, ['+', 2, 2]], {}),
+            7
+        );
+    });
+    test('a number and a number', function() {
+        assert.deepEqual(
+            evalScheem(['+', 2, 2], {}),
+            4
+        );
+    });
+});
+
+// Arithmetic
+suite('arithmetic', function() {
+  test('addition', function() {
+    assert.deepEqual(evalScheem(['+', 2, 3], {}), 5);
+  });
+  test('substraction', function() {
+    assert.deepEqual(evalScheem(['-', 3, 2], {}), 1);
+  });
+  test('multiplication', function() {
+    assert.deepEqual(evalScheem(['*', 2, 3], {}), 6);
+  });
+  test('division', function() {
+    assert.deepEqual(evalScheem(['/', 1, 2], {}), 0.5);
+  });
+  test('expressions', function() {
+    assert.deepEqual(evalScheem(['*', ['/', 8, 4], ['+', 1, 1]], {}), 4);
+  });
+});
+
+  </script>
+  <script>
+    $(function(){
+      mocha.run();
+    });
+  </script>
+</head>
+<body>
+  <div id="mocha"></div>
+</body></html>
